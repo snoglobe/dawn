@@ -1,0 +1,148 @@
+toplevel = 
+	( decl ';'
+	| type	
+	| procDef 
+	| funcDef
+	| import string )
+
+decl =
+	?( volatile ) ?( auto '(' expr ')' | register | static | extern ) ?( const ) var ident is type ?( expr )
+
+struct = 
+	'struct'
+	*{ decl ';'
+	 | procDef 
+	 | funcDef
+	 | alloc '(' ident ')' is begin *{ stmt } end
+	 | free '(' ident ')' is begin *{ stmt } end
+	 }
+	end 
+
+union =
+	'union' *{ valueType ident ';' } end
+
+enum =
+	'enum' *{ ident ';' } end
+
+type = 
+	'type' ident is
+	( struct
+	| union
+	| alias valueType 
+	| enum )
+
+valueType = 
+	*{ '*' } 
+	( u8
+	| u16
+	| u32
+	| u64
+	| s8
+	| s16
+	| s32
+	| s64
+	| f32
+	| f64
+	| bool
+	| sBool
+	| proc '(' ?(valueType *{ ',' valueType }) ')'
+	| func '(' ?(valueType *{ ',' valueType }) ')' valueType 
+	| ident )
+
+procDef =
+	proc ident '(' ?( ident valueType *{ ',' ident valueType } ) ')' is stmt
+
+funcDef = 
+	func ident '(' ?( ident valueType *{ ',' ident valueType } ) ')' valueType is stmt
+
+stmt =
+	( decl ';'
+	| if expr stmt ?( else stmt ) 
+	| while expr stmt
+	| do stmt while expr ';'
+	| for stmt expr ';' expr stmt
+	| switch expr
+	  begin
+		*{ case expr ':' stmt ?( next ) } ?( default ':' stmt )
+	  end
+	| goto ident ';'
+	| gotoptr expr ';'
+	| return ?( expr ) ';'
+	| break ';'
+	| continue ';'
+ 	| label ident ':'
+	| asm string ';'
+	| free expr ';'
+	| expr ';' )
+	
+atom =
+	( intLiteral
+	| floatLiteral
+	| string 
+	| char
+	| true
+	| false
+	| ident
+	| labelref ident 
+	| '(' expr ')' 
+	| alloc expr )
+
+atomPrefix = 
+	( ref
+	| deref
+	| inc
+	| dec 
+	| '!'
+	| '-'
+	| '~' )
+
+call =
+	'(' ?( expr *{ ',' expr } ) ')'
+
+atomSuffix = 
+	( call
+	| '[' expr ']'
+	| '.' ident
+	| '.*' ident
+	| ':' ident call
+	| 'as' valueType
+	| inc
+	| dec )
+
+factor = 
+	*{ atomPrefix } ( atom *{ atomSuffix } ) 
+
+term = 
+	factor ?( ( '*' | '/' | '%' ) term )
+
+expr1 = 
+	term ?( ( '+' | '-' ) expr1 )
+
+expr2 = 
+	expr1 ?( ( '<<' | '>>' ) expr2 )
+
+comparison =
+	expr2 ?( ( '<' | '>' | '<=' | '>=' ) comparison )
+
+equality =
+	comparison ?( ( '==' | '!=' ) equality )
+
+and =
+	equality ?( '&' and )
+
+xor =
+	and ?( '^' and )
+
+or =
+	xor ?( '|' xor )
+
+logical_and =
+	or ?( 'and' logical_and )
+
+logical_or =
+	logical_and ?( 'or' logical_or )
+
+expr =
+	logical_or ?( ( '=' | '+=' | '-=' | '*=' | '/=' | '%=' | '<<=' | '>>=' | '&=' | '^=' | '|=' ) expr )
+	
+
